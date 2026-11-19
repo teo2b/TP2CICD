@@ -10,6 +10,7 @@
 - `GET /health`
 - `GET /products`
 - `POST /orders`
+- `PUT /products/{product_id}/stock`
 
 ## Lancer le projet localement
 

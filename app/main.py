@@ -36,6 +36,10 @@ class OrderCreate(BaseModel):
     quantity: int = Field(gt=0)
 
 
+class StockUpdate(BaseModel):
+    stock: int = Field(ge=0)
+
+
 def seed_products(session: Session) -> None:
     if session.scalar(select(Product).limit(1)) is not None:
         return
@@ -84,6 +88,22 @@ def get_products(db: Session = Depends(get_db)) -> list[dict[str, int | str]]:
         {"id": product.id, "name": product.name, "stock": product.stock}
         for product in products
     ]
+
+
+@app.put("/products/{product_id}/stock")
+def declare_stock(
+    product_id: int,
+    payload: StockUpdate,
+    db: Session = Depends(get_db),
+) -> dict[str, int]:
+    product = db.get(Product, product_id)
+    if product is None:
+        raise HTTPException(status_code=404, detail="Produit introuvable")
+
+    product.stock = payload.stock
+    db.commit()
+    db.refresh(product)
+    return {"id": product.id, "stock": product.stock}
 
 
 @app.post("/orders", status_code=status.HTTP_201_CREATED)

@@ -56,3 +56,25 @@ def test_order_over_stock_is_refused() -> None:
 
     assert response.status_code == 409
     assert response.json() == {"detail": "Stock insuffisant"}
+
+
+def test_product_stock_can_be_declared() -> None:
+    response = client.put("/products/3/stock", json={"stock": 250})
+
+    assert response.status_code == 200
+    assert response.json() == {"id": 3, "stock": 250}
+
+
+def test_product_stock_cannot_be_negative() -> None:
+    response = client.put("/products/3/stock", json={"stock": -1})
+
+    assert response.status_code == 422
+
+
+def test_declared_stock_is_visible_in_products() -> None:
+    client.put("/products/3/stock", json={"stock": 75})
+
+    product = next(
+        item for item in client.get("/products").json() if item["id"] == 3
+    )
+    assert product["stock"] == 75
