@@ -4,7 +4,7 @@ from typing import Generator
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, Integer, String, create_engine, select
+from sqlalchemy import Column, Integer, String, create_engine, select, update
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 
@@ -88,13 +88,22 @@ def get_products(db: Session = Depends(get_db)) -> list[dict[str, int | str]]:
 
 @app.post("/orders", status_code=status.HTTP_201_CREATED)
 def create_order(payload: OrderCreate, db: Session = Depends(get_db)) -> dict[str, int]:
-    product = db.get(Product, payload.product_id)
-    if product is None:
-        raise HTTPException(status_code=404, detail="Produit introuvable")
-    if payload.quantity > product.stock:
+    stock_update = db.execute(
+        update(Product)
+        .where(
+            Product.id == payload.product_id,
+            Product.stock >= payload.quantity,
+        )
+        .values(stock=Product.stock - payload.quantity)
+    )
+    if stock_update.rowcount == 0:
+        if db.get(Product, payload.product_id) is None:
+            db.rollback()
+            raise HTTPException(status_code=404, detail="Produit introuvable")
+
+        db.rollback()
         raise HTTPException(status_code=409, detail="Stock insuffisant")
 
-    product.stock -= payload.quantity
     order = Order(product_id=payload.product_id, quantity=payload.quantity)
     db.add(order)
     db.commit()
