@@ -57,6 +57,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="TP2 CICD API", lifespan=lifespan)
 
+# Initialisation eager pour les lanceurs/tests qui n'entrent pas dans le
+# lifespan FastAPI. Le seed reste idempotent.
+Base.metadata.create_all(bind=engine)
+with SessionLocal() as session:
+    seed_products(session)
+
 
 def get_db() -> Generator[Session, None, None]:
     with SessionLocal() as session:
